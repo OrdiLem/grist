@@ -156,7 +156,7 @@
 
 <header>
   <div class="rf-brand">République<br>Française</div>
-  <h1>🏭 Entreprises en activité — API Recherche Entreprises</h1>
+  <h1>🏭 Entreprises en activité — API Recherche Entreprises V2</h1>
 </header>
 
 <div class="center">
@@ -205,12 +205,43 @@ async function initGrist() {
   try {
     if (typeof grist !== 'undefined') {
       grist.ready({ requiredAccess: 'full' });
+
+      // onOptions reçoit le tableId lié au widget dans le panneau "Données"
       grist.onOptions((options, interaction) => {
-        if (interaction && interaction.tableId) gristTableId = interaction.tableId;
+        if (interaction && interaction.tableId) {
+          gristTableId = interaction.tableId;
+        }
       });
+
       gristReady = true;
     }
   } catch(e) { /* hors Grist */ }
+}
+
+// ══ Résolution du tableId ══════════════════════════════
+// Tente plusieurs méthodes pour obtenir le tableId de la table liée au widget.
+async function resolveTableId() {
+  // 1. Déjà reçu via onOptions
+  if (gristTableId) return gristTableId;
+
+  // 2. Méthode standard : grist.getTable() (disponible depuis Grist 1.1.x)
+  try {
+    if (typeof grist.getTable === 'function') {
+      const table = grist.getTable();
+      if (table && table.tableId) return table.tableId;
+    }
+  } catch(e) { /* non disponible */ }
+
+  // 3. Fallback : lister toutes les tables et prendre la première
+  try {
+    const tables = await grist.docApi.listTables();
+    if (tables && tables.length > 0) return tables[0];
+  } catch(e) { /* non disponible */ }
+
+  throw new Error(
+    'Impossible de déterminer le nom de la table Grist. ' +
+    'Vérifiez que le widget custom est bien lié à une table dans le panneau « Données du widget ».'
+  );
 }
 
 // ══ Collecte toutes les pages API ═════════════════════
@@ -262,26 +293,15 @@ function toRow(e) {
 async function writeToGrist(rows) {
   if (!gristReady) return; // mode démo
 
-  // Récupère le tableId de la table liée au widget custom
   setProgress(63, 'Résolution de la table Grist…');
-  let tbl;
-  try {
-    // API recommandée pour les widgets custom Grist
-    tbl = await grist.selectedTable.getTableId();
-  } catch(e1) {
-    try {
-      // Fallback : stocké lors de onOptions
-      tbl = gristTableId;
-    } catch(e2) { tbl = null; }
-  }
-  if (!tbl) throw new Error('Table introuvable. Vérifiez que le widget est lié à une table dans Grist (panneau Données du widget).');
+  const tbl = await resolveTableId();
 
   // 1. Lire les IDs existants
   setProgress(65, 'Lecture des lignes existantes…');
   const existing = await grist.docApi.fetchTable(tbl);
   const ids = existing.id || [];
 
-  // 2. Supprimer toutes les lignes
+  // 2. Supprimer toutes les lignes existantes
   if (ids.length > 0) {
     setProgress(75, `Suppression de ${ids.length} ligne(s) existante(s)…`);
     await grist.docApi.applyUserActions([
