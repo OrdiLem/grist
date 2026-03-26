@@ -191,7 +191,8 @@
 
 <script>
 // ══ Configuration ══════════════════════════════════════
-const CODE_POSTAL  = '27370';
+// Code INSEE de Le Thuit de l'Oison (27639) — ciblage précis commune
+const CODE_COMMUNE = '27639';
 const PER_PAGE     = 25;
 
 // Noms de colonnes attendus dans la table Grist
@@ -205,7 +206,6 @@ async function initGrist() {
   try {
     if (typeof grist !== 'undefined') {
       grist.ready({ requiredAccess: 'full' });
-      // Récupère l'id de la table liée au widget
       grist.onOptions((options, interaction) => {
         if (interaction && interaction.tableId) gristTableId = interaction.tableId;
       });
@@ -220,8 +220,9 @@ async function fetchAll() {
   let page = 1, totalPages = 1;
 
   do {
+    // code_commune = code INSEE → ciblage exact de la commune, sans filtre client
     const params = new URLSearchParams({
-      code_postal:        CODE_POSTAL,
+      code_commune:       CODE_COMMUNE,
       etat_administratif: 'A',
       per_page:           PER_PAGE,
       page
@@ -231,18 +232,14 @@ async function fetchAll() {
     const data = await res.json();
     totalPages = data.total_pages || 1;
 
-    // Filtre strict sur la commune (le CP 27370 peut couvrir plusieurs communes)
-    (data.results || []).forEach(e => {
-      const c = (e.siege?.commune || '').toUpperCase();
-      if (c.includes('THUIT') || c.includes('OISON')) all.push(e);
-    });
+    (data.results || []).forEach(e => all.push(e));
 
     setProgress(
       Math.round((page / totalPages) * 60),
       `Page ${page}/${totalPages} — ${all.length} établissement(s) trouvé(s)`
     );
     page++;
-    if (page <= totalPages) await sleep(150); // respecter 7 req/s
+    if (page <= totalPages) await sleep(150);
   } while (page <= totalPages);
 
   return all;
