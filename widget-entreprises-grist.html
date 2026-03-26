@@ -1,0 +1,384 @@
+<!DOCTYPE html>
+<html lang="fr">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Entreprises – Le Thuit de l'Oison</title>
+  <script src="https://docs.getgrist.com/grist-plugin-api.js"></script>
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Source+Sans+3:wght@400;600;700&display=swap');
+
+    *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+    :root {
+      --bleu:        #003189;
+      --bleu-hover:  #00209f;
+      --bleu-light:  #e8edf8;
+      --rouge:       #e1000f;
+      --green:       #18753c;
+      --green-light: #e3f5e1;
+      --gris:        #6a6a6a;
+      --gris-light:  #f5f5f5;
+      --border:      #e0e0e0;
+      --font:        'Source Sans 3', 'Segoe UI', system-ui, sans-serif;
+      --radius:      6px;
+    }
+
+    html, body { height: 100%; }
+
+    body {
+      font-family: var(--font);
+      background: var(--gris-light);
+      color: #1e1e1e;
+      font-size: 14px;
+      display: flex;
+      flex-direction: column;
+    }
+
+    header {
+      background: var(--bleu);
+      color: white;
+      padding: 10px 16px;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      border-bottom: 3px solid var(--rouge);
+      flex-shrink: 0;
+    }
+    .rf-brand {
+      font-size: 9px;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      line-height: 1.3;
+      border-right: 1px solid rgba(255,255,255,0.35);
+      padding-right: 12px;
+    }
+    header h1 { font-size: 13px; font-weight: 600; flex: 1; }
+
+    .center {
+      flex: 1;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 28px 16px;
+      gap: 22px;
+    }
+
+    .commune-badge {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      background: white;
+      border: 1px solid var(--border);
+      border-radius: 40px;
+      padding: 8px 20px;
+      font-size: 15px;
+      font-weight: 700;
+      color: var(--bleu);
+      box-shadow: 0 1px 4px rgba(0,0,0,0.06);
+    }
+    .commune-badge span { font-size: 11px; color: var(--gris); font-weight: 400; margin-left: 4px; }
+
+    #btn-maj {
+      background: var(--bleu);
+      color: white;
+      border: none;
+      border-radius: var(--radius);
+      padding: 14px 40px;
+      font-family: var(--font);
+      font-size: 17px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      transition: background 0.2s, transform 0.1s, box-shadow 0.2s;
+      box-shadow: 0 3px 12px rgba(0,49,137,0.28);
+      letter-spacing: 0.01em;
+    }
+    #btn-maj:hover:not(:disabled) {
+      background: var(--bleu-hover);
+      transform: translateY(-1px);
+      box-shadow: 0 5px 16px rgba(0,49,137,0.32);
+    }
+    #btn-maj:disabled { background: #9aaac8; cursor: not-allowed; box-shadow: none; }
+
+    #progress-wrap {
+      width: 100%;
+      max-width: 380px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #progress-label { font-size: 12px; color: var(--gris); text-align: center; }
+    #progress-bar-bg { background: var(--bleu-light); border-radius: 20px; height: 8px; overflow: hidden; }
+    #progress-bar { height: 100%; background: var(--bleu); border-radius: 20px; width: 0%; transition: width 0.35s ease; }
+
+    #result-msg {
+      display: none;
+      align-items: center;
+      gap: 12px;
+      border-radius: var(--radius);
+      padding: 13px 20px;
+      font-size: 14px;
+      font-weight: 600;
+      max-width: 420px;
+      width: 100%;
+    }
+    #result-msg.success { display: flex; background: var(--green-light); color: var(--green); border: 1px solid #a8d5b5; }
+    #result-msg.error   { display: flex; background: #fde8e9; color: var(--rouge); border: 1px solid #f5b8bb; }
+    #result-msg .icon { font-size: 22px; }
+    #result-msg .detail { font-weight: 400; font-size: 12px; margin-top: 2px; opacity: 0.8; }
+
+    #last-update { font-size: 11px; color: var(--gris); }
+
+    #preview {
+      width: 100%;
+      max-width: 580px;
+      display: none;
+      flex-direction: column;
+      gap: 8px;
+    }
+    #preview h2 { font-size: 11px; font-weight: 700; text-transform: uppercase; letter-spacing: 0.06em; color: var(--gris); }
+    .preview-list { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+    .preview-row {
+      background: white; border: 1px solid var(--border); border-radius: var(--radius);
+      padding: 7px 12px; display: flex; align-items: center; justify-content: space-between; gap: 8px;
+    }
+    .preview-row .pname { font-weight: 600; font-size: 13px; flex: 1; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+    .preview-row .pnaf  { font-size: 11px; background: var(--bleu-light); color: var(--bleu); padding: 2px 7px; border-radius: 20px; font-weight: 600; white-space: nowrap; }
+    .preview-more { text-align: center; font-size: 12px; color: var(--gris); padding: 4px; }
+  </style>
+</head>
+<body>
+
+<header>
+  <div class="rf-brand">République<br>Française</div>
+  <h1>🏭 Entreprises en activité — API Recherche Entreprises</h1>
+</header>
+
+<div class="center">
+
+  <div class="commune-badge">
+    📍 Le Thuit de l'Oison <span>27370 · Normandie</span>
+  </div>
+
+  <button id="btn-maj">🔄 Mise à jour</button>
+
+  <div id="progress-wrap">
+    <div id="progress-label">…</div>
+    <div id="progress-bar-bg"><div id="progress-bar"></div></div>
+  </div>
+
+  <div id="result-msg">
+    <span class="icon"></span>
+    <div>
+      <div id="result-text"></div>
+      <div class="detail" id="result-detail"></div>
+    </div>
+  </div>
+
+  <div id="last-update"></div>
+
+  <div id="preview">
+    <h2>Aperçu des données importées</h2>
+    <div class="preview-list" id="preview-list"></div>
+  </div>
+
+</div>
+
+<script>
+// ══ Configuration ══════════════════════════════════════
+const CODE_POSTAL  = '27370';
+const PER_PAGE     = 25;
+
+// Noms de colonnes attendus dans la table Grist
+const COLS = ['nom','siren','siret','naf','adresse','commune','code_postal','etat','date_creation'];
+
+let gristReady = false;
+let gristTableId = null;
+
+// ══ Init Grist ═════════════════════════════════════════
+async function initGrist() {
+  try {
+    if (typeof grist !== 'undefined') {
+      grist.ready({ requiredAccess: 'full' });
+      // Récupère l'id de la table liée au widget
+      grist.onOptions((options, interaction) => {
+        if (interaction && interaction.tableId) gristTableId = interaction.tableId;
+      });
+      gristReady = true;
+    }
+  } catch(e) { /* hors Grist */ }
+}
+
+// ══ Collecte toutes les pages API ═════════════════════
+async function fetchAll() {
+  const all = [];
+  let page = 1, totalPages = 1;
+
+  do {
+    const params = new URLSearchParams({
+      code_postal:        CODE_POSTAL,
+      etat_administratif: 'A',
+      per_page:           PER_PAGE,
+      page
+    });
+    const res = await fetch(`https://recherche-entreprises.api.gouv.fr/search?${params}`);
+    if (!res.ok) throw new Error(`API HTTP ${res.status}`);
+    const data = await res.json();
+    totalPages = data.total_pages || 1;
+
+    // Filtre strict sur la commune (le CP 27370 peut couvrir plusieurs communes)
+    (data.results || []).forEach(e => {
+      const c = (e.siege?.commune || '').toUpperCase();
+      if (c.includes('THUIT') || c.includes('OISON')) all.push(e);
+    });
+
+    setProgress(
+      Math.round((page / totalPages) * 60),
+      `Page ${page}/${totalPages} — ${all.length} établissement(s) trouvé(s)`
+    );
+    page++;
+    if (page <= totalPages) await sleep(150); // respecter 7 req/s
+  } while (page <= totalPages);
+
+  return all;
+}
+
+// ══ Conversion vers ligne Grist ════════════════════════
+function toRow(e) {
+  return {
+    nom:           e.nom_complet || e.nom_raison_sociale || '',
+    siren:         e.siren || '',
+    siret:         e.siege?.siret || '',
+    naf:           e.siege?.activite_principale || '',
+    adresse:       [e.siege?.adresse, e.siege?.code_postal, e.siege?.commune].filter(Boolean).join(' '),
+    commune:       e.siege?.commune || '',
+    code_postal:   e.siege?.code_postal || '',
+    etat:          e.siege?.etat_administratif || '',
+    date_creation: e.date_creation || '',
+  };
+}
+
+// ══ Écriture dans Grist (vider puis remplir) ═══════════
+async function writeToGrist(rows) {
+  if (!gristReady) return; // mode démo
+
+  // Résoudre le nom de la table
+  const tbl = gristTableId || (await grist.getTable())?.tableId;
+  if (!tbl) throw new Error('Impossible de déterminer le nom de la table Grist.');
+
+  // 1. Lire les IDs existants
+  setProgress(65, 'Lecture des lignes existantes…');
+  const existing = await grist.docApi.fetchTable(tbl);
+  const ids = existing.id || [];
+
+  // 2. Supprimer toutes les lignes
+  if (ids.length > 0) {
+    setProgress(75, `Suppression de ${ids.length} ligne(s) existante(s)…`);
+    await grist.docApi.applyUserActions([
+      ['BulkRemoveRecord', tbl, ids]
+    ]);
+  }
+
+  // 3. Insérer les nouvelles lignes
+  setProgress(85, `Insertion de ${rows.length} ligne(s)…`);
+  const fields = {};
+  COLS.forEach(col => { fields[col] = rows.map(r => r[col] ?? ''); });
+  await grist.docApi.applyUserActions([
+    ['BulkAddRecord', tbl, new Array(rows.length).fill(null), fields]
+  ]);
+}
+
+// ══ Orchestration ══════════════════════════════════════
+async function lancerMaj() {
+  const btn = document.getElementById('btn-maj');
+  btn.disabled = true;
+  hideResult();
+  showProgress(true);
+  hidePreview();
+
+  try {
+    setProgress(5, 'Connexion à l\'API Recherche Entreprises…');
+    const entreprises = await fetchAll();
+
+    if (entreprises.length === 0) {
+      showResult('error', 'Aucune entreprise trouvée', 'Vérifiez que le code postal 27370 est correct.');
+      return;
+    }
+
+    const rows = entreprises.map(toRow);
+
+    setProgress(62, 'Écriture dans la table Grist…');
+    await writeToGrist(rows);
+
+    setProgress(100, 'Terminé !');
+    await sleep(300);
+    showProgress(false);
+
+    document.getElementById('last-update').textContent =
+      `Dernière mise à jour : ${new Date().toLocaleString('fr-FR')}`;
+
+    showResult(
+      'success',
+      `${entreprises.length} établissement(s) importé(s)`,
+      gristReady ? 'Table Grist mise à jour.' : 'Mode aperçu (hors Grist) — aperçu ci-dessous.'
+    );
+    renderPreview(rows);
+
+  } catch(err) {
+    showProgress(false);
+    showResult('error', 'Erreur', err.message);
+    console.error(err);
+  } finally {
+    btn.disabled = false;
+  }
+}
+
+// ══ UI helpers ═════════════════════════════════════════
+function setProgress(pct, label) {
+  document.getElementById('progress-bar').style.width = pct + '%';
+  document.getElementById('progress-label').textContent = label;
+}
+function showProgress(v) {
+  document.getElementById('progress-wrap').style.display = v ? 'flex' : 'none';
+}
+function showResult(type, text, detail) {
+  const el = document.getElementById('result-msg');
+  el.className = type;
+  el.querySelector('.icon').textContent = type === 'success' ? '✅' : '❌';
+  document.getElementById('result-text').textContent = text;
+  document.getElementById('result-detail').textContent = detail;
+}
+function hideResult() {
+  const el = document.getElementById('result-msg');
+  el.className = '';
+}
+function hidePreview() {
+  document.getElementById('preview').style.display = 'none';
+}
+function renderPreview(rows) {
+  const MAX = 8;
+  document.getElementById('preview-list').innerHTML =
+    rows.slice(0, MAX).map(r => `
+      <div class="preview-row">
+        <span class="pname">${escHtml(r.nom || '(sans nom)')}</span>
+        ${r.naf ? `<span class="pnaf">NAF ${escHtml(r.naf)}</span>` : ''}
+      </div>`).join('') +
+    (rows.length > MAX ? `<div class="preview-more">… et ${rows.length - MAX} autre(s)</div>` : '');
+  document.getElementById('preview').style.display = 'flex';
+}
+function escHtml(s) {
+  return String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+}
+function sleep(ms) { return new Promise(r => setTimeout(r, ms)); }
+
+// ══ Boot ═══════════════════════════════════════════════
+document.getElementById('btn-maj').addEventListener('click', lancerMaj);
+initGrist();
+</script>
+</body>
+</html>
